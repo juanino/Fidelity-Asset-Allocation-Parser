@@ -1,4 +1,4 @@
 {
   "excel_filename": "AssetAllocation.xls",
-  "cash_symbols": ["FZDXX", "SPAXX", "FZFXX"]
+  "cash_symbols": ["FZDXX", "SPAXX", "FZFXX", "FDRXX", "FCASH"]
 }
