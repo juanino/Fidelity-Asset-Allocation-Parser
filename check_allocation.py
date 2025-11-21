@@ -1,6 +1,9 @@
 import pandas as pd
 import argparse
 import json
+import sys
+import datetime
+import atexit
 
 # Load configuration
 with open('config.json', 'r') as f:
@@ -13,6 +16,74 @@ cash_symbols = config['cash_symbols']
 parser = argparse.ArgumentParser(description='Analyze asset allocation from Excel file')
 parser.add_argument('--account', type=str, default=None, help='Specify account to analyze (default: all accounts)')
 args = parser.parse_args()
+
+# Setup history log: capture stdout to a timestamped history.log (append mode)
+history_path = 'history.log'
+
+class TimestampedTee:
+    """Write stdout to both terminal and a file, prefixing each line in the file with a timestamp."""
+    def __init__(self, filepath):
+        self.terminal = sys.stdout
+        self.file = open(filepath, 'a', encoding='utf-8')
+        self._buf = ''
+
+    def write(self, message):
+        # Always write to terminal as-is
+        try:
+            self.terminal.write(message)
+        except Exception:
+            pass
+
+        # Buffer and write timestamped full lines to file
+        text = self._buf + message
+        lines = text.splitlines(True)
+        # If the last piece does not end with a newline, keep it in buffer
+        if lines:
+            for part in lines[:-1]:
+                ts = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
+                self.file.write(f"{ts} {part}")
+            # Last part may be incomplete
+            if lines[-1].endswith('\n'):
+                ts = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
+                self.file.write(f"{ts} {lines[-1]}")
+                self._buf = ''
+            else:
+                self._buf = lines[-1]
+
+    def flush(self):
+        try:
+            self.terminal.flush()
+        except Exception:
+            pass
+        try:
+            self.file.flush()
+        except Exception:
+            pass
+
+    def close(self):
+        # flush remaining buffer to file with timestamp
+        if self._buf:
+            ts = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
+            self.file.write(f"{ts} {self._buf}\n")
+            self._buf = ''
+        try:
+            self.file.close()
+        except Exception:
+            pass
+
+# Replace sys.stdout with the tee so all prints go to history.log as well
+tee = TimestampedTee(history_path)
+sys.stdout = tee
+
+# Ensure file is closed at exit and stdout restored
+def _cleanup():
+    try:
+        tee.flush()
+        tee.close()
+    except Exception:
+        pass
+
+atexit.register(_cleanup)
 
 # Read the AssetAllocation.xls file into a pandas dataframe
 df = pd.read_excel(excel_filename)

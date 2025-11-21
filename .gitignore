@@ -126,3 +126,4 @@ dmypy.json
 *.csv
 *.xls
 *.xlsx
+history.log
