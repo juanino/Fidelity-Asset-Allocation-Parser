@@ -8,3 +8,4 @@ six==1.17.0
 tzdata==2025.2
 xlrd==2.0.2
 pylint
+rich==14.2.0

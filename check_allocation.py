@@ -9,6 +9,8 @@ import json
 import datetime
 import atexit
 import pandas as pd
+from rich.console import Console
+from rich.table import Table
 
 # Load configuration
 with open('config.json', 'r', encoding='utf-8') as f:
@@ -80,6 +82,9 @@ class TimestampedTee:
 tee = TimestampedTee(HISTORY_PATH)
 sys.stdout = tee
 
+# Create rich console for formatted output
+console = Console(file=sys.stdout, force_terminal=True)
+
 # Ensure file is closed at exit and stdout restored
 def _cleanup():
     """Flush and close the tee at exit."""
@@ -126,11 +131,14 @@ for col in asset_columns:
 pivot_table = df[['Symbol', 'Description'] + asset_columns].copy()
 
 # Display the full table
-print(
-    "Asset Allocation Summary:"
-)
+print("\nAsset Allocation Summary:")
 print("=" * 120)
-print(pivot_table.to_string())
+table = Table(title="Asset Allocation Details", show_header=True, header_style="bold magenta")
+for col in pivot_table.columns:
+    table.add_column(col, style="cyan" if col in ['Symbol', 'Description'] else "green")
+for _, row in pivot_table.iterrows():
+    table.add_row(*[str(val) for val in row])
+console.print(table)
 
 # Also create a summary showing total allocation by asset class
 print(
@@ -141,9 +149,7 @@ summary = df[asset_columns].sum()
 print(summary)
 
 # Create a detailed summary with dollars and percentages
-print(
-    "\n\nDetailed Allocation Summary:"
-)
+print("\n\nDetailed Allocation Summary:")
 print("=" * 70)
 total_value = summary.sum()
 
@@ -153,21 +159,22 @@ summary_df = pd.DataFrame({
     'Percentage': (summary.values / total_value * 100).round(2)
 })
 
-# Format the output nicely
-for idx, row in summary_df.iterrows():
-    print(f"{row['Asset Class']:20s} "
-          f"${row['Dollars']:>15,.2f}  "
-          f"{row['Percentage']:>7.2f}%")
-
-print("-" * 70)
-print(f"{'TOTAL':20s} "
-      f"${total_value:>15,.2f}  "
-      f"{100.00:>7.2f}%")
+# Format the output nicely with rich table
+table = Table(title="Detailed Allocation Summary", show_header=True, header_style="bold cyan")
+table.add_column("Asset Class", style="yellow", width=20)
+table.add_column("Dollars", style="green", justify="right")
+table.add_column("Percentage", style="magenta", justify="right")
+for _, row in summary_df.iterrows():
+    table.add_row(
+        row['Asset Class'],
+        f"${row['Dollars']:,.2f}",
+        f"{row['Percentage']:.2f}%"
+    )
+table.add_row("TOTAL", f"${total_value:,.2f}", "100.00%", style="bold white")
+console.print(table)
 
 # Detailed Allocation Minus Cash
-print(
-    "\n\nDetailed Allocation Minus Cash:"
-)
+print("\n\nDetailed Allocation Minus Cash:")
 print("=" * 70)
 df_minus_cash = df[~df['Symbol'].isin(cash_symbols)]
 summary_minus_cash = df_minus_cash[asset_columns].sum()
@@ -179,20 +186,21 @@ summary_minus_cash_df = pd.DataFrame({
     'Percentage': (summary_minus_cash.values / total_value_minus_cash * 100).round(2)
 })
 
-for idx, row in summary_minus_cash_df.iterrows():
-    print(f"{row['Asset Class']:20s} "
-          f"${row['Dollars']:>15,.2f}  "
-          f"{row['Percentage']:>7.2f}%")
-
-print("-" * 70)
-print(f"{'TOTAL':20s} "
-      f"${total_value_minus_cash:>15,.2f}  "
-      f"{100.00:>7.2f}%")
+table = Table(title="Detailed Allocation Minus Cash", show_header=True, header_style="bold cyan")
+table.add_column("Asset Class", style="yellow", width=20)
+table.add_column("Dollars", style="green", justify="right")
+table.add_column("Percentage", style="magenta", justify="right")
+for _, row in summary_minus_cash_df.iterrows():
+    table.add_row(
+        row['Asset Class'],
+        f"${row['Dollars']:,.2f}",
+        f"{row['Percentage']:.2f}%"
+    )
+table.add_row("TOTAL", f"${total_value_minus_cash:,.2f}", "100.00%", style="bold white")
+console.print(table)
 
 # Final table: Stock and Bonds/CDs aggregation
-print(
-    "\n\nFinal Aggregated Table (Stock vs Bonds or CDs):"
-)
+print("\n\nFinal Aggregated Table (Stock vs Bonds or CDs):")
 print("=" * 70)
 
 # Aggregate columns
@@ -207,27 +215,24 @@ agg_df = pd.DataFrame({
     'Percentage': [round(stock_total/total_agg*100,2), round(cash_total/total_agg*100,2), round(other_total/total_agg*100,2)]
 })
 
-for idx, row in agg_df.iterrows():
-    print(f"{row['Category']:20s} "
-          f"${row['Dollars']:>15,.2f}  "
-          f"{row['Percentage']:>7.2f}%")
-
-print("-" * 70)
-print(f"{'TOTAL':20s} "
-      f"${total_agg:>15,.2f}  "
-      f"{100.00:>7.2f}%")
+table = Table(title="Stock vs Bonds or CDs", show_header=True, header_style="bold cyan")
+table.add_column("Category", style="yellow", width=20)
+table.add_column("Dollars", style="green", justify="right")
+table.add_column("Percentage", style="magenta", justify="right")
+for _, row in agg_df.iterrows():
+    table.add_row(
+        row['Category'],
+        f"${row['Dollars']:,.2f}",
+        f"{row['Percentage']:.2f}%"
+    )
+table.add_row("TOTAL", f"${total_agg:,.2f}", "100.00%", style="bold white")
+console.print(table)
 
 # Display list of accounts for reference
-print(
-    "\n\nAvailable Accounts:"
-)
+print("\n\nAvailable Accounts:")
 print("=" * 70)
-print(
-    "Use --account option to analyze a specific account:"
-)
-print(
-    "Example: python check_allocation.py --account \"*1234\""
-)
+print("Use --account option to analyze a specific account:")
+print("Example: python check_allocation.py --account \"*1234\"")
 print("=" * 70)
 
 # Read the original dataframe to get all accounts
@@ -244,6 +249,9 @@ account_df = pd.DataFrame({
     'Holdings': [len(df_original[df_original['Account'] == acc]) for acc in accounts]
 })
 
-for idx, row in account_df.iterrows():
-    print(f"{str(row['Account']):20s} "
-          f"{int(row['Holdings']):3d} holdings")
+table = Table(title="Available Accounts", show_header=True, header_style="bold cyan")
+table.add_column("Account", style="yellow", width=20)
+table.add_column("Holdings", style="green", justify="right")
+for _, row in account_df.iterrows():
+    table.add_row(str(row['Account']), str(int(row['Holdings'])))
+console.print(table)
