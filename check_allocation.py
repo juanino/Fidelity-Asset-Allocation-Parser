@@ -21,7 +21,7 @@ cash_symbols = config['cash_symbols']
 
 # Set up command-line argument parser
 parser = argparse.ArgumentParser(description='Analyze asset allocation from Excel file')
-parser.add_argument('--account', type=str, default=None, help='Specify account to analyze (default: all accounts)')
+parser.add_argument('--account', type=str, nargs='+', default=None, help='Specify account(s) to analyze (default: all accounts). Use: --account *1234 or --account *1234 *5678')
 args = parser.parse_args()
 
 # Setup history log: capture stdout to a timestamped history.log (append mode)
@@ -111,8 +111,8 @@ df = df.dropna(subset=['Symbol'])
 
 # Filter by account if specified
 if args.account:
-    df = df[df['Account'].str.strip() == args.account]
-    print(f"Analyzing account: {args.account}")
+    df = df[df['Account'].str.strip().isin(args.account)]
+    print(f"Analyzing accounts: {', '.join(args.account)}")
     print("=" * 120)
 else:
     print("Analyzing all accounts")
@@ -171,6 +171,48 @@ for _, row in summary_df.iterrows():
         f"{row['Percentage']:.2f}%"
     )
 table.add_row("TOTAL", f"${total_value:,.2f}", "100.00%", style="bold white")
+console.print(table)
+
+# Cash positions by account and symbol
+print("\n\nUninvested Money by Account and Symbol:")
+print("=" * 70)
+
+# Get cash positions from the current dataframe (could be filtered by account)
+df_cash = df[df['Symbol'].isin(cash_symbols)].copy()
+
+# Convert asset columns to numeric for cash dataframe
+for col in asset_columns:
+    df_cash[col] = pd.to_numeric(df_cash[col], errors='coerce')
+
+# Calculate total value for each cash position
+df_cash['Total'] = df_cash[asset_columns].sum(axis=1)
+
+# Group by Account and Symbol, summing the totals
+if len(df_cash) > 0:
+    cash_by_account = df_cash.groupby(['Account', 'Symbol'])['Total'].sum().reset_index()
+    cash_by_account = cash_by_account.sort_values(['Account', 'Total'], ascending=[True, False])
+else:
+    cash_by_account = pd.DataFrame()
+
+# Create table
+table = Table(title="Uninvested Money by Account and Symbol", show_header=True, header_style="bold cyan")
+table.add_column("Account", style="yellow", width=20)
+table.add_column("Symbol", style="cyan", width=10)
+table.add_column("Dollars", style="green", justify="right")
+
+if len(cash_by_account) > 0:
+    for _, row in cash_by_account.iterrows():
+        table.add_row(
+            str(row['Account']),
+            str(row['Symbol']),
+            f"${row['Total']:,.2f}"
+        )
+    # Add total row
+    total_cash_by_account = cash_by_account['Total'].sum()
+    table.add_row("TOTAL", "", f"${total_cash_by_account:,.2f}", style="bold white")
+else:
+    table.add_row("No cash positions", "", "", style="dim")
+
 console.print(table)
 
 # Detailed Allocation Minus Cash
@@ -254,4 +296,30 @@ table.add_column("Account", style="yellow", width=20)
 table.add_column("Holdings", style="green", justify="right")
 for _, row in account_df.iterrows():
     table.add_row(str(row['Account']), str(int(row['Holdings'])))
+console.print(table)
+# Invested vs Not Invested summary
+print("\n\nInvested vs Not Invested:")
+print("=" * 70)
+
+# Calculate cash (not invested) and invested amounts
+cash_amount = df[df['Symbol'].isin(cash_symbols)][asset_columns].sum().sum()
+invested_amount = total_value - cash_amount
+
+invested_df = pd.DataFrame({
+    'Status': ['Invested', 'Not Invested (Cash)'],
+    'Dollars': [invested_amount, cash_amount],
+    'Percentage': [round(invested_amount/total_value*100, 2), round(cash_amount/total_value*100, 2)]
+})
+
+table = Table(title="Invested vs Not Invested", show_header=True, header_style="bold cyan")
+table.add_column("Status", style="yellow", width=25)
+table.add_column("Dollars", style="green", justify="right")
+table.add_column("Percentage", style="magenta", justify="right")
+for _, row in invested_df.iterrows():
+    table.add_row(
+        row['Status'],
+        f"${row['Dollars']:,.2f}",
+        f"{row['Percentage']:.2f}%"
+    )
+table.add_row("TOTAL", f"${total_value:,.2f}", "100.00%", style="bold white")
 console.print(table)
