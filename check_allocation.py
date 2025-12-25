@@ -215,6 +215,29 @@ else:
 
 console.print(table)
 
+# Cash totals by account
+print("\n\nCash in Each Account:")
+print("=" * 70)
+
+if len(df_cash) > 0:
+    cash_by_account_totals = df_cash.groupby('Account')['Total'].sum().reset_index()
+    cash_by_account_totals = cash_by_account_totals.sort_values('Total', ascending=False)
+
+    table = Table(title="Cash in Each Account", show_header=True, header_style="bold cyan")
+    table.add_column("Account", style="yellow", width=20)
+    table.add_column("Cash Amount", style="green", justify="right")
+
+    for _, row in cash_by_account_totals.iterrows():
+        table.add_row(
+            str(row['Account']),
+            f"${row['Total']:,.2f}"
+        )
+    total_cash = cash_by_account_totals['Total'].sum()
+    table.add_row("TOTAL", f"${total_cash:,.2f}", style="bold white")
+    console.print(table)
+else:
+    print("No cash positions found")
+
 # Detailed Allocation Minus Cash
 print("\n\nDetailed Allocation Minus Cash:")
 print("=" * 70)
