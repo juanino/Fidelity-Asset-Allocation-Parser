@@ -135,204 +135,160 @@ def _cleanup():
 
 atexit.register(_cleanup)
 
-def generate_pdf(pivot_table, summary_df, total_value, cash_by_account, cash_by_account_totals, 
-                 summary_minus_cash_df, total_value_minus_cash, agg_df, total_agg, 
-                 invested_df, account_df, accounts_filter=None):
-    """Generate a PDF report of the asset allocation analysis."""
+def _create_pdf_table(data, has_total_row=True):
+    """Create a styled ReportLab table."""
+    pdf_table = RLTable(data)
+    style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+    ]
+    if has_total_row:
+        style.extend([
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ])
+    pdf_table.setStyle(TableStyle(style))
+    return pdf_table
+
+def _add_allocation_summary(elements, heading_style, summary_data, total_val, title_text):
+    """Add allocation summary section to PDF."""
+    elements.append(Paragraph(title_text, heading_style))
+    data = [['Asset Class', 'Dollars', 'Percentage']]
+    for _, item in summary_data.iterrows():
+        data.append([item['Asset Class'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    data.append(['TOTAL', f"${total_val:,.2f}", "100.00%"])
+    elements.append(_create_pdf_table(data))
+    elements.append(Spacer(1, 0.3*inch))
+
+def _add_cash_summary(elements, heading_style, cash_data):
+    """Add cash summary section to PDF."""
+    elements.append(Paragraph("Uninvested Money by Account and Symbol", heading_style))
+    if len(cash_data) > 0:
+        data = [['Account', 'Symbol', 'Dollars']]
+        for _, item in cash_data.iterrows():
+            data.append([str(item['Account']), str(item['Symbol']), f"${item['Total']:,.2f}"])
+        total_cash_sum = cash_data['Total'].sum()
+        data.append(['TOTAL', '', f"${total_cash_sum:,.2f}"])
+    else:
+        data = [['Account', 'Symbol', 'Dollars'], ['No cash positions', '', '']]
+    elements.append(_create_pdf_table(data))
+    elements.append(Spacer(1, 0.3*inch))
+
+def _add_cash_by_account(elements, heading_style, cash_totals_data):
+    """Add cash by account section to PDF."""
+    elements.append(Paragraph("Cash in Each Account", heading_style))
+    if len(cash_totals_data) > 0:
+        data = [['Account', 'Cash Amount']]
+        for _, item in cash_totals_data.iterrows():
+            data.append([str(item['Account']), f"${item['Total']:,.2f}"])
+        total = cash_totals_data['Total'].sum()
+        data.append(['TOTAL', f"${total:,.2f}"])
+    else:
+        data = [['Account', 'Cash Amount'], ['No cash positions', '']]
+    elements.append(_create_pdf_table(data))
+    elements.append(Spacer(1, 0.3*inch))
+
+def _add_aggregated_table(elements, heading_style, agg_data, total_agg_value):
+    """Add aggregated stock vs bonds section to PDF."""
+    elements.append(Paragraph("Stock vs Bonds or CDs", heading_style))
+    data = [['Category', 'Dollars', 'Percentage']]
+    for _, item in agg_data.iterrows():
+        data.append([item['Category'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    data.append(['TOTAL', f"${total_agg_value:,.2f}", "100.00%"])
+    elements.append(_create_pdf_table(data))
+    elements.append(Spacer(1, 0.3*inch))
+
+def _add_invested_summary(elements, heading_style, invested_data):
+    """Add invested vs not invested section to PDF."""
+    elements.append(Paragraph("Invested vs Not Invested", heading_style))
+    data = [['Status', 'Dollars', 'Percentage']]
+    for _, item in invested_data.iterrows():
+        data.append([item['Status'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    data.append(['TOTAL', f"${invested_data['Dollars'].sum():,.2f}", "100.00%"])
+    elements.append(_create_pdf_table(data))
+    elements.append(Spacer(1, 0.3*inch))
+
+def _add_accounts_list(elements, heading_style, accounts_data):
+    """Add available accounts section to PDF."""
+    elements.append(Paragraph("Available Accounts", heading_style))
+    data = [['Account', 'Holdings']]
+    for _, item in accounts_data.iterrows():
+        data.append([str(item['Account']), str(int(item['Holdings']))])
+    elements.append(_create_pdf_table(data, has_total_row=False))
+
+def generate_pdf(data_dict, accounts_filter=None):
+    """Generate a PDF report of the asset allocation analysis.
+
+    Args:
+        data_dict: Dictionary containing all data needed for PDF generation with keys:
+                  'summary_data', 'total_val', 'cash_data', 'cash_totals_data',
+                  'summary_minus_cash_data', 'total_minus_cash', 'agg_data',
+                  'total_agg_val', 'invested_data', 'accounts_data'
+        accounts_filter: Optional list of account names to filter by
+    """
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     if accounts_filter:
         filename = f"asset_allocation_report_{'-'.join(accounts_filter)}_{timestamp}.pdf"
     else:
         filename = f"asset_allocation_report_all_{timestamp}.pdf"
-    
+
     doc = SimpleDocTemplate(filename, pagesize=landscape(letter))
     elements = []
     styles = getSampleStyleSheet()
-    
+
     # Custom styles
-    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#1f77b4'))
-    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], fontSize=12, spaceAfter=12)
-    
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
+                                 fontSize=16, textColor=colors.HexColor('#1f77b4'))
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'],
+                                   fontSize=12, spaceAfter=12)
+
     # Title
     if accounts_filter:
-        title = Paragraph(f"Asset Allocation Report - Accounts: {', '.join(accounts_filter)}", title_style)
+        title_text = f"Asset Allocation Report - Accounts: {', '.join(accounts_filter)}"
     else:
-        title = Paragraph("Asset Allocation Report - All Accounts", title_style)
+        title_text = "Asset Allocation Report - All Accounts"
+    title = Paragraph(title_text, title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.2*inch))
-    
+
     # Timestamp
-    elements.append(Paragraph(f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    timestamp_text = f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    elements.append(Paragraph(timestamp_text, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
-    
+
     # 1. Detailed Allocation Summary
-    elements.append(Paragraph("Detailed Allocation Summary", heading_style))
-    data = [['Asset Class', 'Dollars', 'Percentage']]
-    for _, row in summary_df.iterrows():
-        data.append([row['Asset Class'], f"${row['Dollars']:,.2f}", f"{row['Percentage']:.2f}%"])
-    data.append(['TOTAL', f"${total_value:,.2f}", "100.00%"])
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_allocation_summary(elements, heading_style, data_dict['summary_data'],
+                           data_dict['total_val'], "Detailed Allocation Summary")
+
     # 2. Cash by Account
-    elements.append(Paragraph("Uninvested Money by Account and Symbol", heading_style))
-    if len(cash_by_account) > 0:
-        data = [['Account', 'Symbol', 'Dollars']]
-        for _, row in cash_by_account.iterrows():
-            data.append([str(row['Account']), str(row['Symbol']), f"${row['Total']:,.2f}"])
-        total_cash_by_account = cash_by_account['Total'].sum()
-        data.append(['TOTAL', '', f"${total_cash_by_account:,.2f}"])
-    else:
-        data = [['Account', 'Symbol', 'Dollars'], ['No cash positions', '', '']]
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_cash_summary(elements, heading_style, data_dict['cash_data'])
+
     # 3. Cash in Each Account
-    elements.append(Paragraph("Cash in Each Account", heading_style))
-    if len(cash_by_account_totals) > 0:
-        data = [['Account', 'Cash Amount']]
-        for _, row in cash_by_account_totals.iterrows():
-            data.append([str(row['Account']), f"${row['Total']:,.2f}"])
-        total_cash = cash_by_account_totals['Total'].sum()
-        data.append(['TOTAL', f"${total_cash:,.2f}"])
-    else:
-        data = [['Account', 'Cash Amount'], ['No cash positions', '']]
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_cash_by_account(elements, heading_style, data_dict['cash_totals_data'])
+
     # Page break before next section
     elements.append(PageBreak())
-    
+
     # 4. Detailed Allocation Minus Cash
-    elements.append(Paragraph("Detailed Allocation Minus Cash", heading_style))
-    data = [['Asset Class', 'Dollars', 'Percentage']]
-    for _, row in summary_minus_cash_df.iterrows():
-        data.append([row['Asset Class'], f"${row['Dollars']:,.2f}", f"{row['Percentage']:.2f}%"])
-    data.append(['TOTAL', f"${total_value_minus_cash:,.2f}", "100.00%"])
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_allocation_summary(elements, heading_style, data_dict['summary_minus_cash_data'],
+                           data_dict['total_minus_cash'], "Detailed Allocation Minus Cash")
+
     # 5. Stock vs Bonds or CDs
-    elements.append(Paragraph("Stock vs Bonds or CDs", heading_style))
-    data = [['Category', 'Dollars', 'Percentage']]
-    for _, row in agg_df.iterrows():
-        data.append([row['Category'], f"${row['Dollars']:,.2f}", f"{row['Percentage']:.2f}%"])
-    data.append(['TOTAL', f"${total_agg:,.2f}", "100.00%"])
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_aggregated_table(elements, heading_style, data_dict['agg_data'],
+                         data_dict['total_agg_val'])
+
     # 6. Invested vs Not Invested
-    elements.append(Paragraph("Invested vs Not Invested", heading_style))
-    data = [['Status', 'Dollars', 'Percentage']]
-    for _, row in invested_df.iterrows():
-        data.append([row['Status'], f"${row['Dollars']:,.2f}", f"{row['Percentage']:.2f}%"])
-    data.append(['TOTAL', f"${invested_df['Dollars'].sum():,.2f}", "100.00%"])
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 0.3*inch))
-    
+    _add_invested_summary(elements, heading_style, data_dict['invested_data'])
+
     # 7. Available Accounts
-    elements.append(Paragraph("Available Accounts", heading_style))
-    data = [['Account', 'Holdings']]
-    for _, row in account_df.iterrows():
-        data.append([str(row['Account']), str(int(row['Holdings']))])
-    
-    t = RLTable(data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a90e2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    
+    _add_accounts_list(elements, heading_style, data_dict['accounts_data'])
+
     # Build PDF
     doc.build(elements)
     return filename
@@ -597,21 +553,19 @@ console.print(table)
 print("\n\nGenerating PDF Report...")
 print("=" * 70)
 try:
-    pdf_filename = generate_pdf(
-        pivot_table=pivot_table,
-        summary_df=summary_df,
-        total_value=total_value,
-        cash_by_account=cash_by_account,
-        cash_by_account_totals=cash_by_account_totals if len(df_cash) > 0 else pd.DataFrame(),
-        summary_minus_cash_df=summary_minus_cash_df,
-        total_value_minus_cash=total_value_minus_cash,
-        agg_df=agg_df,
-        total_agg=total_agg,
-        invested_df=invested_df,
-        account_df=account_df,
-        accounts_filter=args.account
-    )
+    pdf_data = {
+        'summary_data': summary_df,
+        'total_val': total_value,
+        'cash_data': cash_by_account,
+        'cash_totals_data': cash_by_account_totals if len(df_cash) > 0 else pd.DataFrame(),
+        'summary_minus_cash_data': summary_minus_cash_df,
+        'total_minus_cash': total_value_minus_cash,
+        'agg_data': agg_df,
+        'total_agg_val': total_agg,
+        'invested_data': invested_df,
+        'accounts_data': account_df
+    }
+    pdf_filename = generate_pdf(pdf_data, accounts_filter=args.account)
     print(f"PDF report successfully generated: {pdf_filename}")
-except Exception as e:
+except (IOError, OSError, ValueError) as e:
     print(f"Error generating PDF: {e}", file=sys.stderr)
-
