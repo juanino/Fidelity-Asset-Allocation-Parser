@@ -60,27 +60,19 @@ python check_allocation.py --help
 ```
 Displays available command-line options.
 
-## Requirements
-- Python 3.x
-- pandas==2.3.3
-- openpyxl==3.1.5
+## Installation
 
-### Installation
-
-1. Create a virtual environment (recommended):
+1. Create a virtual environment:
 ```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Linux/Mac
+# OR
+venv\Scripts\activate  # On Windows
 ```
 
-2. Install dependencies from requirements.txt:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
-```
-
-Or manually install:
-```bash
-pip install pandas openpyxl
 ```
 
 ## Input File and Configuration
