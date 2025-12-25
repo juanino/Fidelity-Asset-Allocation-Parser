@@ -269,7 +269,6 @@ def _add_aggregated_table(elements, heading_style, agg_data, total_agg_value):
         data.append([item['Category'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
     data.append(['TOTAL', f"${total_agg_value:,.2f}", "100.00%"])
     elements.append(_create_pdf_table(data))
-    elements.append(Spacer(1, 0.3*inch))
 
 def _add_invested_summary(elements, heading_style, invested_data):
     """Add invested vs not invested section to PDF."""
@@ -279,7 +278,6 @@ def _add_invested_summary(elements, heading_style, invested_data):
         data.append([item['Status'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
     data.append(['TOTAL', f"${invested_data['Dollars'].sum():,.2f}", "100.00%"])
     elements.append(_create_pdf_table(data))
-    elements.append(Spacer(1, 0.3*inch))
 
 def _add_accounts_list(elements, heading_style, accounts_data):
     """Add available accounts section to PDF."""
@@ -313,7 +311,7 @@ def generate_pdf(data_dict, accounts_filter=None):
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
                                  fontSize=16, textColor=colors.HexColor('#1f77b4'))
     heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'],
-                                   fontSize=12, spaceAfter=12)
+                                   fontSize=10, spaceAfter=8)
 
     # Title
     if accounts_filter:
@@ -332,21 +330,18 @@ def generate_pdf(data_dict, accounts_filter=None):
     # 1 & 2. Allocation summaries side by side
     _add_allocation_summaries_side_by_side(elements, heading_style, data_dict)
 
-    # Page break before cash analysis
-    elements.append(PageBreak())
-
-    # 3 & 4. Cash tables on their own page
-    _add_cash_tables_side_by_side(elements, heading_style, data_dict['cash_data'],
-                                  data_dict['cash_totals_data'])
-
-    # Page break before next section
-    elements.append(PageBreak())
-
-    # 5. Stock vs Bonds or CDs
+    # 3. Stock vs Bonds or CDs (same page)
     _add_aggregated_table(elements, heading_style, data_dict['agg_data'],
                          data_dict['total_agg_val'])
 
-    # 6. Invested vs Not Invested
+    # Page break before cash analysis
+    elements.append(PageBreak())
+
+    # 4 & 5. Cash tables on their own page
+    _add_cash_tables_side_by_side(elements, heading_style, data_dict['cash_data'],
+                                  data_dict['cash_totals_data'])
+
+    # 6. Invested vs Not Invested (same page as cash analysis)
     _add_invested_summary(elements, heading_style, data_dict['invested_data'])
 
     # Page break before available accounts
