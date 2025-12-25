@@ -565,7 +565,6 @@ try:
         'invested_data': invested_df,
         'accounts_data': account_df
     }
-    pdf_filename = generate_pdf(pdf_data, accounts_filter=args.account)
-    print(f"PDF report successfully generated: {pdf_filename}")
+    print(f"PDF report successfully generated: {generate_pdf(pdf_data, accounts_filter=args.account)}")
 except (IOError, OSError, ValueError) as e:
     print(f"Error generating PDF: {e}", file=sys.stderr)
