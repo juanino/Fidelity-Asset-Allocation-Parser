@@ -107,6 +107,31 @@ Displays available command-line options.
 The script expects:
 1. An Excel file specified in `config.json` (default: `AssetAllocation.xls`)
 2. A `config.json` file in the same directory
+3. (Optional) An `account_nicknames.json` file for friendly account names
+
+### Account Nicknames (Optional)
+
+You can create an `account_nicknames.json` file to assign friendly names to your accounts. This makes the reports easier to read.
+
+1. Copy the example file:
+```bash
+cp account_nicknames.json.example account_nicknames.json
+```
+
+2. Edit `account_nicknames.json` with your account names:
+```json
+{
+  "nicknames": {
+    "*****1234": "Roth IRA",
+    "*****5678": "401(k)",
+    "*****9101": "Brokerage"
+  }
+}
+```
+
+The nicknames will appear in both console output and PDF reports as "Nickname (Account ID)". If no nickname file exists, the tool will work normally using just the account IDs.
+
+**Note:** The `account_nicknames.json` file is excluded from git to protect your privacy.
 
 ### config.json
 The configuration file controls:

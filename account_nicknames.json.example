@@ -1,0 +1,9 @@
+{
+  "comment": "This is an example account nicknames file. Copy this to account_nicknames.json and add your account nicknames.",
+  "nicknames": {
+    "*1234": "HSA",
+    "*****5678": "Roth IRA",
+    "*****9101": "401(k)",
+    "*****1213": "Traditional IRA",
+  }
+}

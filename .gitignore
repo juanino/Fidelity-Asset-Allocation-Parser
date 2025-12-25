@@ -128,3 +128,6 @@ dmypy.json
 *.xlsx
 history.log
 *.pdf
+
+# Account nicknames - contains personal account information
+account_nicknames.json

@@ -58,6 +58,27 @@ if not os.path.isfile(excel_filename):
     print(f"Current directory: {os.getcwd()}\n", file=sys.stderr)
     print_usage()
 
+# Load account nicknames (optional)
+account_nicknames = {}
+try:
+    with open('account_nicknames.json', 'r', encoding='utf-8') as f:
+        nicknames_data = json.load(f)
+        account_nicknames = nicknames_data.get('nicknames', {})
+except FileNotFoundError:
+    pass  # Nicknames file is optional
+except json.JSONDecodeError as e:
+    print(f"\nWarning: Failed to parse account_nicknames.json: {e}", file=sys.stderr)
+    print("Continuing without nicknames.\n", file=sys.stderr)
+
+def get_account_display_name(account_id):
+    """Get the display name for an account, using nickname if available."""
+    # Remove asterisks for cleaner display
+    clean_id = account_id.replace('*', '')
+    if account_id in account_nicknames:
+        return f"{account_nicknames[account_id]} ({clean_id})"
+    return clean_id
+
+
 # Set up command-line argument parser
 parser = argparse.ArgumentParser(description='Analyze asset allocation from Excel file')
 parser.add_argument('--account', type=str, nargs='+', default=None, help='Specify account(s) to analyze (default: all accounts). Use: --account *1234 or --account *1234 *5678')
@@ -208,7 +229,7 @@ def _add_cash_tables_side_by_side(elements, heading_style, cash_data, cash_total
     if len(cash_data) > 0:
         left_data = [['Account', 'Symbol', 'Dollars']]
         for _, item in cash_data.iterrows():
-            left_data.append([str(item['Account']), str(item['Symbol']), f"${item['Total']:,.2f}"])
+            left_data.append([get_account_display_name(str(item['Account'])), str(item['Symbol']), f"${item['Total']:,.2f}"])
         total_cash_sum = cash_data['Total'].sum()
         left_data.append(['TOTAL', '', f"${total_cash_sum:,.2f}"])
     else:
@@ -220,7 +241,7 @@ def _add_cash_tables_side_by_side(elements, heading_style, cash_data, cash_total
     if len(cash_totals_data) > 0:
         right_data = [['Account', 'Cash Amount']]
         for _, item in cash_totals_data.iterrows():
-            right_data.append([str(item['Account']), f"${item['Total']:,.2f}"])
+            right_data.append([get_account_display_name(str(item['Account'])), f"${item['Total']:,.2f}"])
         total = cash_totals_data['Total'].sum()
         right_data.append(['TOTAL', f"${total:,.2f}"])
     else:
@@ -265,7 +286,7 @@ def _add_accounts_list(elements, heading_style, accounts_data):
     elements.append(Paragraph("Available Accounts", heading_style))
     data = [['Account', 'Holdings']]
     for _, item in accounts_data.iterrows():
-        data.append([str(item['Account']), str(int(item['Holdings']))])
+        data.append([get_account_display_name(str(item['Account'])), str(int(item['Holdings']))])
     elements.append(_create_pdf_table(data, has_total_row=False))
 
 def generate_pdf(data_dict, accounts_filter=None):
@@ -450,7 +471,7 @@ table.add_column("Dollars", style="green", justify="right")
 if len(cash_by_account) > 0:
     for _, row in cash_by_account.iterrows():
         table.add_row(
-            str(row['Account']),
+            get_account_display_name(str(row['Account'])),
             str(row['Symbol']),
             f"${row['Total']:,.2f}"
         )
@@ -476,7 +497,7 @@ if len(df_cash) > 0:
 
     for _, row in cash_by_account_totals.iterrows():
         table.add_row(
-            str(row['Account']),
+            get_account_display_name(str(row['Account'])),
             f"${row['Total']:,.2f}"
         )
     total_cash = cash_by_account_totals['Total'].sum()
@@ -565,7 +586,7 @@ table = Table(title="Available Accounts", show_header=True, header_style="bold c
 table.add_column("Account", style="yellow", width=20)
 table.add_column("Holdings", style="green", justify="right")
 for _, row in account_df.iterrows():
-    table.add_row(str(row['Account']), str(int(row['Holdings'])))
+    table.add_row(get_account_display_name(str(row['Account'])), str(int(row['Holdings'])))
 console.print(table)
 # Invested vs Not Invested summary
 print("\n\nInvested vs Not Invested:")
