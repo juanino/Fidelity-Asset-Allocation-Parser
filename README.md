@@ -40,40 +40,67 @@ High-level summary that groups allocations into three categories:
 
 Shows both dollar amounts and percentages for each category.
 
-## Usage
-
-### Basic Usage (All Accounts)
-```bash
-python check_allocation.py
-```
-Analyzes all accounts in your portfolio.
-
-### Account-Specific Analysis
-```bash
-python check_allocation.py --account "*1234"
-```
-Analyzes a specific account. Replace `*1234` with the desired account ID from your data.
-
-### Help
-```bash
-python check_allocation.py --help
-```
-Displays available command-line options.
+### 6. **PDF Report**
+Automatically generates a professional PDF report containing all the analysis tables with timestamps.
 
 ## Installation
 
+### Using Make (Recommended)
+```bash
+make install
+```
+This will create a virtual environment and install all dependencies.
+
+### Manual Installation
+
 1. Create a virtual environment:
 ```bash
-python3 -m venv venv
-source venv/bin/activate  # On Linux/Mac
+python3 -m venv .venv
+source .venv/bin/activate  # On Linux/Mac
 # OR
-venv\Scripts\activate  # On Windows
+.venv\Scripts\activate  # On Windows
 ```
 
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+## Usage
+
+### Using Make (Recommended)
+```bash
+make run
+```
+Analyzes all accounts in your portfolio and generates a PDF report.
+
+### Manual Usage
+
+#### Basic Usage (All Accounts)
+```bash
+python check_allocation.py
+```
+Analyzes all accounts in your portfolio.
+
+#### Account-Specific Analysis
+```bash
+python check_allocation.py --account "*1234"
+```
+Analyzes a specific account. Replace `*1234` with the desired account ID from your data.
+
+#### Help
+```bash
+python check_allocation.py --help
+```
+Displays available command-line options.
+
+## Make Commands
+
+- `make install` - Create virtual environment and install dependencies
+- `make run` - Run the asset allocation analysis
+- `make clean` - Remove generated PDF reports
+- `make lint` - Run pylint on the code
+- `make help` - Show available make targets
 
 ## Input File and Configuration
 
