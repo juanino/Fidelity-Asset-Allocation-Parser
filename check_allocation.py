@@ -166,32 +166,78 @@ def _add_allocation_summary(elements, heading_style, summary_data, total_val, ti
     elements.append(_create_pdf_table(data))
     elements.append(Spacer(1, 0.3*inch))
 
-def _add_cash_summary(elements, heading_style, cash_data):
-    """Add cash summary section to PDF."""
-    elements.append(Paragraph("Uninvested Money by Account and Symbol", heading_style))
-    if len(cash_data) > 0:
-        data = [['Account', 'Symbol', 'Dollars']]
-        for _, item in cash_data.iterrows():
-            data.append([str(item['Account']), str(item['Symbol']), f"${item['Total']:,.2f}"])
-        total_cash_sum = cash_data['Total'].sum()
-        data.append(['TOTAL', '', f"${total_cash_sum:,.2f}"])
-    else:
-        data = [['Account', 'Symbol', 'Dollars'], ['No cash positions', '', '']]
-    elements.append(_create_pdf_table(data))
+def _add_allocation_summaries_side_by_side(elements, heading_style, data_dict):
+    """Add allocation summary and allocation minus cash tables side by side."""
+    # Build left table (Detailed Allocation Summary)
+    left_heading = Paragraph("Detailed Allocation Summary", heading_style)
+    left_data = [['Asset Class', 'Dollars', 'Percentage']]
+    for _, item in data_dict['summary_data'].iterrows():
+        left_data.append([item['Asset Class'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    left_data.append(['TOTAL', f"${data_dict['total_val']:,.2f}", "100.00%"])
+    left_table = _create_pdf_table(left_data)
+
+    # Build right table (Detailed Allocation Minus Cash)
+    right_heading = Paragraph("Detailed Allocation Minus Cash", heading_style)
+    right_data = [['Asset Class', 'Dollars', 'Percentage']]
+    for _, item in data_dict['summary_minus_cash_data'].iterrows():
+        right_data.append([item['Asset Class'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    right_data.append(['TOTAL', f"${data_dict['total_minus_cash']:,.2f}", "100.00%"])
+    right_table = _create_pdf_table(right_data)
+
+    # Create a container table to hold both tables side by side
+    container_data = [
+        [left_heading, right_heading],
+        [left_table, right_table]
+    ]
+    container_table = RLTable(container_data, colWidths=[4.25*inch, 4.25*inch])
+    container_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(container_table)
     elements.append(Spacer(1, 0.3*inch))
 
-def _add_cash_by_account(elements, heading_style, cash_totals_data):
-    """Add cash by account section to PDF."""
-    elements.append(Paragraph("Cash in Each Account", heading_style))
-    if len(cash_totals_data) > 0:
-        data = [['Account', 'Cash Amount']]
-        for _, item in cash_totals_data.iterrows():
-            data.append([str(item['Account']), f"${item['Total']:,.2f}"])
-        total = cash_totals_data['Total'].sum()
-        data.append(['TOTAL', f"${total:,.2f}"])
+def _add_cash_tables_side_by_side(elements, heading_style, cash_data, cash_totals_data):
+    """Add cash summary and cash by account tables side by side on a new page."""
+    # Page title
+    elements.append(Paragraph("Cash Analysis", heading_style))
+    elements.append(Spacer(1, 0.2*inch))
+
+    # Build left table (Uninvested Money by Account and Symbol)
+    left_heading = Paragraph("Uninvested Money by Account and Symbol", heading_style)
+    if len(cash_data) > 0:
+        left_data = [['Account', 'Symbol', 'Dollars']]
+        for _, item in cash_data.iterrows():
+            left_data.append([str(item['Account']), str(item['Symbol']), f"${item['Total']:,.2f}"])
+        total_cash_sum = cash_data['Total'].sum()
+        left_data.append(['TOTAL', '', f"${total_cash_sum:,.2f}"])
     else:
-        data = [['Account', 'Cash Amount'], ['No cash positions', '']]
-    elements.append(_create_pdf_table(data))
+        left_data = [['Account', 'Symbol', 'Dollars'], ['No cash positions', '', '']]
+    left_table = _create_pdf_table(left_data)
+
+    # Build right table (Cash in Each Account)
+    right_heading = Paragraph("Cash in Each Account", heading_style)
+    if len(cash_totals_data) > 0:
+        right_data = [['Account', 'Cash Amount']]
+        for _, item in cash_totals_data.iterrows():
+            right_data.append([str(item['Account']), f"${item['Total']:,.2f}"])
+        total = cash_totals_data['Total'].sum()
+        right_data.append(['TOTAL', f"${total:,.2f}"])
+    else:
+        right_data = [['Account', 'Cash Amount'], ['No cash positions', '']]
+    right_table = _create_pdf_table(right_data)
+
+    # Create a container table to hold both tables side by side
+    container_data = [
+        [left_heading, right_heading],
+        [left_table, right_table]
+    ]
+    container_table = RLTable(container_data, colWidths=[5*inch, 3.5*inch])
+    container_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(container_table)
     elements.append(Spacer(1, 0.3*inch))
 
 def _add_aggregated_table(elements, heading_style, agg_data, total_agg_value):
@@ -262,22 +308,18 @@ def generate_pdf(data_dict, accounts_filter=None):
     elements.append(Paragraph(timestamp_text, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
 
-    # 1. Detailed Allocation Summary
-    _add_allocation_summary(elements, heading_style, data_dict['summary_data'],
-                           data_dict['total_val'], "Detailed Allocation Summary")
+    # 1 & 2. Allocation summaries side by side
+    _add_allocation_summaries_side_by_side(elements, heading_style, data_dict)
 
-    # 2. Cash by Account
-    _add_cash_summary(elements, heading_style, data_dict['cash_data'])
+    # Page break before cash analysis
+    elements.append(PageBreak())
 
-    # 3. Cash in Each Account
-    _add_cash_by_account(elements, heading_style, data_dict['cash_totals_data'])
+    # 3 & 4. Cash tables on their own page
+    _add_cash_tables_side_by_side(elements, heading_style, data_dict['cash_data'],
+                                  data_dict['cash_totals_data'])
 
     # Page break before next section
     elements.append(PageBreak())
-
-    # 4. Detailed Allocation Minus Cash
-    _add_allocation_summary(elements, heading_style, data_dict['summary_minus_cash_data'],
-                           data_dict['total_minus_cash'], "Detailed Allocation Minus Cash")
 
     # 5. Stock vs Bonds or CDs
     _add_aggregated_table(elements, heading_style, data_dict['agg_data'],
@@ -285,6 +327,9 @@ def generate_pdf(data_dict, accounts_filter=None):
 
     # 6. Invested vs Not Invested
     _add_invested_summary(elements, heading_style, data_dict['invested_data'])
+
+    # Page break before available accounts
+    elements.append(PageBreak())
 
     # 7. Available Accounts
     _add_accounts_list(elements, heading_style, data_dict['accounts_data'])
