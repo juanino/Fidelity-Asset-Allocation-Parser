@@ -4,6 +4,7 @@ Asset Allocation Analysis Tool
 Analyzes asset allocation from a Fidelity Excel export file, outputs summary tables, and logs all stdout to history.log with timestamps.
 """
 import sys
+import os
 import argparse
 import json
 import datetime
@@ -12,12 +13,45 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 
-# Load configuration
-with open('config.json', 'r', encoding='utf-8') as f:
-    config = json.load(f)
+def print_usage():
+    """Print usage information and exit."""
+    print("\nUsage: python check_allocation.py [--account ACCOUNT [ACCOUNT ...]]\n")
+    print("This tool analyzes asset allocation from a Fidelity Excel export file.")
+    print("\nRequired files:")
+    print("  - config.json: Configuration file containing excel_filename and cash_symbols")
+    print("  - Excel file: The asset allocation export file specified in config.json\n")
+    print("Options:")
+    print("  --account ACCOUNT [ACCOUNT ...]  Analyze specific account(s) only")
+    print("                                   Example: --account *1234 *5678\n")
+    print("Example config.json format:")
+    print("  {\"excel_filename\": \"AssetAllocation.xls\", \"cash_symbols\": [\"SPAXX\", \"FCASH\"]}\n")
+    sys.exit(1)
 
-excel_filename = config['excel_filename']
-cash_symbols = config['cash_symbols']
+# Load configuration
+try:
+    with open('config.json', 'r', encoding='utf-8') as f:
+        config = json.load(f)
+except FileNotFoundError:
+    print("\nError: config.json file not found in the current directory.", file=sys.stderr)
+    print_usage()
+except json.JSONDecodeError as e:
+    print(f"\nError: Failed to parse config.json: {e}", file=sys.stderr)
+    print_usage()
+
+# Validate configuration
+try:
+    excel_filename = config['excel_filename']
+    cash_symbols = config['cash_symbols']
+except KeyError as e:
+    print(f"\nError: Missing required key in config.json: {e}", file=sys.stderr)
+    print_usage()
+
+# Check if Excel file exists
+if not os.path.isfile(excel_filename):
+    print(f"\nError: Excel file '{excel_filename}' not found.", file=sys.stderr)
+    print("Please ensure the file exists in the current directory.", file=sys.stderr)
+    print(f"Current directory: {os.getcwd()}\n", file=sys.stderr)
+    print_usage()
 
 # Set up command-line argument parser
 parser = argparse.ArgumentParser(description='Analyze asset allocation from Excel file')
@@ -97,7 +131,11 @@ def _cleanup():
 atexit.register(_cleanup)
 
 # Read the AssetAllocation.xls file into a pandas dataframe
-df = pd.read_excel(excel_filename)
+try:
+    df = pd.read_excel(excel_filename)
+except (FileNotFoundError, PermissionError, ValueError, ImportError) as e:
+    print(f"\nError: Failed to read Excel file '{excel_filename}': {e}", file=sys.stderr)
+    sys.exit(1)
 
 # The first row contains the actual headers, so set them properly
 df.columns = df.iloc[0]
