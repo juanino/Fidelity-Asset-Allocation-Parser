@@ -374,7 +374,9 @@ df = df.dropna(subset=['Symbol'])
 
 # Filter by account if specified
 if args.account:
-    df = df[df['Account'].str.strip().isin(args.account)]
+    # Support shorthand: remove asterisks from provided account names for comparison
+    account_patterns = [acc.replace('*', '') for acc in args.account]
+    df = df[df['Account'].str.strip().str.replace('*', '').isin(account_patterns)]
     print(f"Analyzing accounts: {', '.join(args.account)}")
     print("=" * 120)
 else:
