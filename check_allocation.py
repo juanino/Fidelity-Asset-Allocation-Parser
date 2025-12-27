@@ -270,6 +270,15 @@ def _add_aggregated_table(elements, heading_style, agg_data, total_agg_value):
     data.append(['TOTAL', f"${total_agg_value:,.2f}", "100.00%"])
     elements.append(_create_pdf_table(data))
 
+def _add_us_vs_international_table(elements, heading_style, us_intl_data, total_val):
+    """Add US vs International stocks section to PDF."""
+    elements.append(Paragraph("US vs International Stocks (Minus Cash)", heading_style))
+    data = [['Category', 'Dollars', 'Percentage']]
+    for _, item in us_intl_data.iterrows():
+        data.append([item['Category'], f"${item['Dollars']:,.2f}", f"{item['Percentage']:.2f}%"])
+    data.append(['TOTAL', f"${total_val:,.2f}", "100.00%"])
+    elements.append(_create_pdf_table(data))
+
 def _add_invested_summary(elements, heading_style, invested_data):
     """Add invested vs not invested section to PDF."""
     elements.append(Paragraph("Invested vs Not Invested", heading_style))
@@ -333,6 +342,10 @@ def generate_pdf(data_dict, accounts_filter=None):
     # 3. Stock vs Bonds or CDs (same page)
     _add_aggregated_table(elements, heading_style, data_dict['agg_data'],
                          data_dict['total_agg_val'])
+
+    # 3b. US vs International Stocks (same page)
+    _add_us_vs_international_table(elements, heading_style, data_dict['us_intl_data'],
+                                   data_dict['total_us_intl'])
 
     # Page break before cash analysis
     elements.append(PageBreak())
@@ -558,6 +571,41 @@ for _, row in agg_df.iterrows():
 table.add_row("TOTAL", f"${total_agg:,.2f}", "100.00%", style="bold white")
 console.print(table)
 
+# US vs International Stocks (Minus Cash)
+print("\n\nUS vs International Stocks (Minus Cash):")
+print("=" * 70)
+
+# Compute US vs International based on non-cash holdings
+domestic_total = float(summary_minus_cash_df.loc[summary_minus_cash_df['Asset Class'] == 'Domestic Stock', 'Dollars'].sum())
+foreign_total = float(summary_minus_cash_df.loc[summary_minus_cash_df['Asset Class'] == 'Foreign Stock', 'Dollars'].sum())
+us_intl_total = domestic_total + foreign_total
+
+if us_intl_total > 0:
+    us_pct = round(domestic_total / us_intl_total * 100, 2)
+    intl_pct = round(foreign_total / us_intl_total * 100, 2)
+else:
+    us_pct = 0.0
+    intl_pct = 0.0
+
+us_intl_df = pd.DataFrame({
+    'Category': ['US (Domestic)', 'International (Foreign)'],
+    'Dollars': [domestic_total, foreign_total],
+    'Percentage': [us_pct, intl_pct]
+})
+
+table = Table(title="US vs International Stocks (Minus Cash)", show_header=True, header_style="bold cyan")
+table.add_column("Category", style="yellow", width=28)
+table.add_column("Dollars", style="green", justify="right")
+table.add_column("Percentage", style="magenta", justify="right")
+for _, row in us_intl_df.iterrows():
+    table.add_row(
+        row['Category'],
+        f"${row['Dollars']:,.2f}",
+        f"{row['Percentage']:.2f}%"
+    )
+table.add_row("TOTAL", f"${us_intl_total:,.2f}", "100.00%", style="bold white")
+console.print(table)
+
 # Display list of accounts for reference
 print("\n\nAvailable Accounts:")
 print("=" * 70)
@@ -625,6 +673,8 @@ try:
         'total_minus_cash': total_value_minus_cash,
         'agg_data': agg_df,
         'total_agg_val': total_agg,
+            'us_intl_data': us_intl_df,
+            'total_us_intl': us_intl_total,
         'invested_data': invested_df,
         'accounts_data': account_df
     }

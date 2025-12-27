@@ -40,7 +40,14 @@ High-level summary that groups allocations into three categories:
 
 Shows both dollar amounts and percentages for each category.
 
-### 6. **PDF Report**
+### 6. **US vs International Stocks (Minus Cash)**
+Breakdown of stock allocation between:
+- **US (Domestic)**: Percentage of stock allocated to US equities
+- **International (Foreign)**: Percentage of stock allocated to international equities
+
+This section excludes cash symbols to focus on invested stock holdings. Displays dollars and percentages relative to total stock (Domestic + Foreign).
+
+### 7. **PDF Report**
 Automatically generates a professional PDF report containing all the analysis tables with timestamps.
 
 ## Installation
