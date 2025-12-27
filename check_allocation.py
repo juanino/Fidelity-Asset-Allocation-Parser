@@ -581,16 +581,16 @@ foreign_total = float(summary_minus_cash_df.loc[summary_minus_cash_df['Asset Cla
 us_intl_total = domestic_total + foreign_total
 
 if us_intl_total > 0:
-    us_pct = round(domestic_total / us_intl_total * 100, 2)
-    intl_pct = round(foreign_total / us_intl_total * 100, 2)
+    US_PCT = round(domestic_total / us_intl_total * 100, 2)
+    INTL_PCT = round(foreign_total / us_intl_total * 100, 2)
 else:
-    us_pct = 0.0
-    intl_pct = 0.0
+    US_PCT = 0.0
+    INTL_PCT = 0.0
 
 us_intl_df = pd.DataFrame({
     'Category': ['US (Domestic)', 'International (Foreign)'],
     'Dollars': [domestic_total, foreign_total],
-    'Percentage': [us_pct, intl_pct]
+    'Percentage': [US_PCT, INTL_PCT]
 })
 
 table = Table(title="US vs International Stocks (Minus Cash)", show_header=True, header_style="bold cyan")
