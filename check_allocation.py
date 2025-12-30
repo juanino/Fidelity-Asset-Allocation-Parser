@@ -68,9 +68,9 @@ try:
     with open('account_nicknames.json', 'r', encoding='utf-8') as f:
         nicknames_data = json.load(f)
         account_nicknames_raw = nicknames_data.get('nicknames', {})
-        
+
         # Support both old format (string) and new format (dict with name and type)
-        for account_id, value in account_nicknames_raw.items():
+        for account_id, value in account_nicknames_raw.items():  # pylint: disable=redefined-outer-name
             if isinstance(value, dict):
                 # New format: {"name": "...", "type": "taxable|roth|tax-deferred"}
                 account_nicknames[account_id] = value.get('name', account_id)
@@ -81,7 +81,7 @@ try:
                 account_types[account_id] = 'unknown'
 
             # Populate cleaned lookup (remove asterisks)
-            clean_id = account_id.replace('*', '')
+            clean_id = account_id.replace('*', '')  # pylint: disable=redefined-outer-name
             account_nicknames_clean[clean_id] = account_nicknames[account_id]
             account_types_clean[clean_id] = account_types[account_id]
 except FileNotFoundError:
@@ -90,7 +90,7 @@ except json.JSONDecodeError as e:
     print(f"\nWarning: Failed to parse account_nicknames.json: {e}", file=sys.stderr)
     print("Continuing without nicknames.\n", file=sys.stderr)
 
-def get_account_display_name(account_id, include_type=False):
+def get_account_display_name(account_id, include_type=False):  # pylint: disable=redefined-outer-name
     """Get the display name for an account, using nickname if available.
 
     Args:
@@ -100,11 +100,11 @@ def get_account_display_name(account_id, include_type=False):
     Returns:
         Display name with optional type information
     """
-    clean_id = account_id.replace('*', '')
+    clean_id = account_id.replace('*', '')  # pylint: disable=redefined-outer-name
 
     # Try exact match first, then fall back to cleaned match
     nickname = account_nicknames.get(account_id)
-    account_type = account_types.get(account_id, 'unknown')
+    account_type = account_types.get(account_id, 'unknown')  # pylint: disable=redefined-outer-name
     if nickname is None and clean_id in account_nicknames_clean:
         nickname = account_nicknames_clean.get(clean_id)
         account_type = account_types_clean.get(clean_id, account_type)
@@ -114,16 +114,16 @@ def get_account_display_name(account_id, include_type=False):
 
     if include_type and account_type != 'unknown':
         return f"{nickname} ({clean_id}) [{account_type}]"
-    elif account_type != 'unknown' and account_id in account_nicknames:
+    if account_type != 'unknown' and account_id in account_nicknames:
         return f"{nickname} ({clean_id}) [{account_type}]"
-    elif account_id in account_nicknames or clean_id in account_nicknames_clean:
+    if account_id in account_nicknames or clean_id in account_nicknames_clean:
         return f"{nickname} ({clean_id})"
     return clean_id
 
 
-def get_account_type(account_id):
+def get_account_type(account_id):  # pylint: disable=redefined-outer-name
     """Return account type using exact or cleaned id lookup."""
-    clean_id = account_id.replace('*', '')
+    clean_id = account_id.replace('*', '')  # pylint: disable=redefined-outer-name
     if account_id in account_types:
         return account_types[account_id]
     if clean_id in account_types_clean:
@@ -294,8 +294,8 @@ def _add_cash_tables_side_by_side(elements, heading_style, cash_data, cash_total
         right_data = [['Account', 'Cash Amount']]
         for _, item in cash_totals_data.iterrows():
             right_data.append([get_account_display_name(str(item['Account'])), f"${item['Total']:,.2f}"])
-        total = cash_totals_data['Total'].sum()
-        right_data.append(['TOTAL', f"${total:,.2f}"])
+        cash_sum = cash_totals_data['Total'].sum()
+        right_data.append(['TOTAL', f"${cash_sum:,.2f}"])
     else:
         right_data = [['Account', 'Cash Amount'], ['No cash positions', '']]
     right_table = _create_pdf_table(right_data)
@@ -360,7 +360,7 @@ def _add_asset_location_table(elements, heading_style, asset_location_data):
             f"${item['Bonds']:,.2f}",
             f"${item['Total']:,.2f}"
         ])
-    data.append(['TOTAL', '', 
+    data.append(['TOTAL', '',
                  f"${asset_location_data['Stocks'].sum():,.2f}",
                  f"${asset_location_data['Bonds'].sum():,.2f}",
                  f"${asset_location_data['Total'].sum():,.2f}"])
@@ -370,7 +370,7 @@ def _add_asset_location_by_type_table(elements, heading_style, by_type_data):
     """Add asset location grouped by account type table to PDF."""
     elements.append(Paragraph("Asset Location by Account Type", heading_style))
     data = [['Type', 'Stocks', 'Bonds', 'Total', 'Efficiency']]
-    
+
     # Build data rows
     for _, item in by_type_data.iterrows():
         data.append([
@@ -385,7 +385,7 @@ def _add_asset_location_by_type_table(elements, heading_style, by_type_data):
                  f"${by_type_data['Bonds'].sum():,.2f}",
                  f"${by_type_data['Total'].sum():,.2f}",
                  ''])
-    
+
     # Create table with custom styling for efficiency column
     pdf_table = RLTable(data)
     style = [
@@ -400,7 +400,7 @@ def _add_asset_location_by_type_table(elements, heading_style, by_type_data):
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
     ]
-    
+
     # Add color styling for efficiency column (column index 4)
     for row_idx in range(1, len(data) - 1):  # Skip header and total row
         efficiency_val = data[row_idx][4]
@@ -411,7 +411,7 @@ def _add_asset_location_by_type_table(elements, heading_style, by_type_data):
             style.append(('TEXTCOLOR', (4, row_idx), (4, row_idx), colors.red))
             style.append(('FONTNAME', (4, row_idx), (4, row_idx), 'Helvetica-Bold'))
         # N/A stays default color
-    
+
     pdf_table.setStyle(TableStyle(style))
     elements.append(pdf_table)
 
@@ -752,8 +752,8 @@ account_df = pd.DataFrame({
     'Account_ID': [str(acc) for acc in accounts],
     'Holdings': [len(df_original[df_original['Account'] == acc]) for acc in accounts]
 })
-account_df['Account_Type'] = account_df['Account_ID'].map(lambda x: get_account_type(x))
-account_df['Account'] = account_df['Account_ID'].map(lambda x: get_account_display_name(x))
+account_df['Account_Type'] = account_df['Account_ID'].map(get_account_type)
+account_df['Account'] = account_df['Account_ID'].map(get_account_display_name)
 
 table = Table(title="Available Accounts", show_header=True, header_style="bold cyan")
 table.add_column("Account", style="yellow", width=25)
@@ -787,10 +787,9 @@ def categorize_holding(asset_class):
     """Categorize a holding as Stock or Bond."""
     if asset_class in stock_classes:
         return 'Stock'
-    elif asset_class in bond_classes:
+    if asset_class in bond_classes:
         return 'Bond'
-    else:
-        return 'Other'
+    return 'Other'
 
 # Add categorization to dataframe
 df_for_location['Category'] = df_for_location['Asset Class'].apply(categorize_holding) if 'Asset Class' in df_for_location.columns else 'Other'
@@ -813,27 +812,27 @@ asset_location_by_account = []
 
 for account in df_for_location['Account'].unique():
     account_data = df_for_location[df_for_location['Account'] == account]
-    
+
     # Exclude cash symbols from bond calculations
     account_data_no_cash = account_data[~account_data['Symbol'].isin(cash_symbols)]
-    
+
     # Calculate stocks total (Domestic + Foreign)
     stocks_total = 0.0
     if 'Domestic Stock' in asset_columns:
         stocks_total += account_data['Domestic Stock'].sum()
     if 'Foreign Stock' in asset_columns:
         stocks_total += account_data['Foreign Stock'].sum()
-    
+
     # Calculate bonds total (Bonds + Short_term), excluding cash symbols
     bonds_total = 0.0
     if 'Bonds' in asset_columns:
         bonds_total += account_data_no_cash['Bonds'].sum()
     if 'Short_term' in asset_columns:
         bonds_total += account_data_no_cash['Short_term'].sum()
-    
+
     total = stocks_total + bonds_total
     account_type = get_account_type(str(account))
-    
+
     asset_location_by_account.append({
         'Account': get_account_display_name(str(account)),
         'Account_ID': str(account),
@@ -884,17 +883,17 @@ asset_location_by_type_df = asset_location_by_type_df.sort_values('Total', ascen
 
 # Calculate efficiency: bonds in tax-deferred are efficient, others are inefficient
 total_bonds_all_types = asset_location_by_type_df['Bonds'].sum()
-def calc_efficiency(row):
+def calc_efficiency(row):  # pylint: disable=redefined-outer-name
+    """Calculate tax efficiency rating for bond placement."""
     if row['Bonds'] == 0:
         return "N/A"
     if row['Account_Type'] == 'tax-deferred':
         return "Efficient"
-    else:
-        # Calculate percentage of total bonds that are inefficiently placed
-        if total_bonds_all_types > 0:
-            pct = (row['Bonds'] / total_bonds_all_types) * 100
-            return f"{pct:.1f}% Inefficient"
-        return "N/A"
+    # Calculate percentage of total bonds that are inefficiently placed
+    if total_bonds_all_types > 0:
+        pct = (row['Bonds'] / total_bonds_all_types) * 100
+        return f"{pct:.1f}% Inefficient"
+    return "N/A"
 
 asset_location_by_type_df['Efficiency'] = asset_location_by_type_df.apply(calc_efficiency, axis=1)
 
@@ -904,21 +903,21 @@ table.add_column("Stocks", style="green", justify="right")
 table.add_column("Bonds", style="blue", justify="right")
 table.add_column("Total", style="magenta", justify="right")
 table.add_column("Efficiency", width=18)
-for _, row in asset_location_by_type_df.iterrows():
+for _, type_row in asset_location_by_type_df.iterrows():
     # Color the efficiency text directly
-    if row['Efficiency'] == "Efficient":
-        efficiency_display = "[green]Efficient[/green]"
-    elif row['Efficiency'] == "N/A":
-        efficiency_display = "[dim]N/A[/dim]"
+    if type_row['Efficiency'] == "Efficient":
+        efficiency_text = "[green]Efficient[/green]"  # pylint: disable=invalid-name
+    elif type_row['Efficiency'] == "N/A":
+        efficiency_text = "[dim]N/A[/dim]"  # pylint: disable=invalid-name
     else:
-        efficiency_display = f"[red]{row['Efficiency']}[/red]"
-    
+        efficiency_text = f"[red]{type_row['Efficiency']}[/red]"  # pylint: disable=invalid-name
+
     table.add_row(
-        str(row['Account_Type']),
-        f"${row['Stocks']:,.2f}",
-        f"${row['Bonds']:,.2f}",
-        f"${row['Total']:,.2f}",
-        efficiency_display
+        str(type_row['Account_Type']),
+        f"${type_row['Stocks']:,.2f}",
+        f"${type_row['Bonds']:,.2f}",
+        f"${type_row['Total']:,.2f}",
+        efficiency_text
     )
 table.add_row("TOTAL", f"${asset_location_by_type_df['Stocks'].sum():,.2f}", f"${asset_location_by_type_df['Bonds'].sum():,.2f}", f"${asset_location_by_type_df['Total'].sum():,.2f}", "", style="bold white")
 console.print(table)
@@ -961,7 +960,7 @@ try:
     asset_location_df_pdf = asset_location_df_pdf.sort_values(['__type_rank','Total'], ascending=[True, False]).drop(columns='__type_rank')
     # Prepare grouped-by-type for PDF (include Efficiency column)
     asset_location_by_type_df_pdf = asset_location_by_type_df[['Account_Type', 'Stocks', 'Bonds', 'Total', 'Efficiency']].copy()
-    
+
     pdf_data = {
         'summary_data': summary_df,
         'total_val': total_value,
