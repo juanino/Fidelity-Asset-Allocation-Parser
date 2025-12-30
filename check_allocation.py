@@ -884,14 +884,14 @@ asset_location_by_type_df = asset_location_by_type_df.sort_values('Total', ascen
 # Calculate efficiency: bonds in tax-deferred are efficient, others are inefficient
 total_bonds_all_types = asset_location_by_type_df['Bonds'].sum()
 def calc_efficiency(row):  # pylint: disable=redefined-outer-name
-    """Calculate tax efficiency rating for bond placement."""
+    """Calculate tax efficiency rating for bond placement per account type total."""
     if row['Bonds'] == 0:
         return "N/A"
     if row['Account_Type'] == 'tax-deferred':
         return "Efficient"
-    # Calculate percentage of total bonds that are inefficiently placed
-    if total_bonds_all_types > 0:
-        pct = (row['Bonds'] / total_bonds_all_types) * 100
+    # Percentage of this account type's total that is bonds (inefficient placement)
+    if row['Total'] > 0:
+        pct = (row['Bonds'] / row['Total']) * 100
         return f"{pct:.1f}% Inefficient"
     return "N/A"
 
