@@ -817,14 +817,14 @@ for account in df_for_location['Account'].unique():
     account_data_no_cash = account_data[~account_data['Symbol'].isin(cash_symbols)]
 
     # Calculate stocks total (Domestic + Foreign)
-    stocks_total = 0.0
+    stocks_total = 0.0  # pylint: disable=invalid-name
     if 'Domestic Stock' in asset_columns:
         stocks_total += account_data['Domestic Stock'].sum()
     if 'Foreign Stock' in asset_columns:
         stocks_total += account_data['Foreign Stock'].sum()
 
     # Calculate bonds total (Bonds + Short_term), excluding cash symbols
-    bonds_total = 0.0
+    bonds_total = 0.0  # pylint: disable=invalid-name
     if 'Bonds' in asset_columns:
         bonds_total += account_data_no_cash['Bonds'].sum()
     if 'Short_term' in asset_columns:
