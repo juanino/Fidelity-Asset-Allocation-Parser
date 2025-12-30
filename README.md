@@ -47,7 +47,37 @@ Breakdown of stock allocation between:
 
 This section excludes cash symbols to focus on invested stock holdings. Displays dollars and percentages relative to total stock (Domestic + Foreign).
 
-### 7. **PDF Report**
+### 7. **Asset Location (Tax Efficiency Planning)**
+Shows where your stocks and bonds are located across accounts, sorted by account type. This table helps you optimize tax efficiency by placing the right assets in the right account types.
+
+**Columns:**
+- **Account**: Account name and number
+- **Type**: Account type (see Account Types section below)
+- **Stocks**: Total stock holdings (Domestic + Foreign)
+- **Bonds**: Total bond holdings (Bonds + Short-term), excluding cash
+- **Total**: Sum of stocks and bonds in the account
+
+**Note:** Cash positions (defined in `config.json`) are excluded from bonds to show only actual bond holdings.
+
+### 8. **Asset Location by Account Type**
+Aggregates stocks and bonds by account type with an efficiency rating for tax planning.
+
+**Columns:**
+- **Type**: Account type
+- **Stocks**: Total stocks in this account type
+- **Bonds**: Total bonds in this account type
+- **Total**: Combined total
+- **Efficiency**: Tax efficiency rating
+  - **Efficient** (green): Bonds in tax-deferred accounts
+  - **X% Inefficient** (red): Bonds in taxable/Roth accounts (shows % of total bonds)
+  - **N/A**: No bonds in this account type
+
+**Tax Efficiency Guidelines:**
+- Bonds generate ordinary income, so they're most tax-efficient in tax-deferred accounts
+- Stocks are tax-efficient in taxable accounts (long-term capital gains treatment)
+- Roth accounts are best for high-growth assets
+
+### 9. **PDF Report**
 Automatically generates a professional PDF report containing all the analysis tables with timestamps.
 
 ## Installation
@@ -118,25 +148,41 @@ The script expects:
 
 ### Account Nicknames (Optional)
 
-You can create an `account_nicknames.json` file to assign friendly names to your accounts. This makes the reports easier to read.
+You can create an `account_nicknames.json` file to assign friendly names and account types to your accounts. This makes the reports easier to read and enables tax efficiency analysis.
 
 1. Copy the example file:
 ```bash
 cp account_nicknames.json.example account_nicknames.json
 ```
 
-2. Edit `account_nicknames.json` with your account names:
+2. Edit `account_nicknames.json` with your account names and types:
 ```json
 {
+  "comment": "Account configuration file. Add your account nicknames and types for tax efficiency planning. Supported types: taxable, tax-deferred, roth; unknown is used as a fallback.",
   "nicknames": {
-    "*****1234": "Roth IRA",
-    "*****5678": "401(k)",
-    "*****9101": "Brokerage"
+    "*****1234": {
+      "name": "Roth IRA",
+      "type": "roth"
+    },
+    "*****5678": {
+      "name": "401(k)",
+      "type": "tax-deferred"
+    },
+    "*****9101": {
+      "name": "Brokerage",
+      "type": "taxable"
+    }
   }
 }
 ```
 
-The nicknames will appear in both console output and PDF reports as "Nickname (Account ID)". If no nickname file exists, the tool will work normally using just the account IDs.
+**Account Types:**
+- **taxable**: Standard brokerage accounts (dividends/gains taxed annually)
+- **tax-deferred**: Traditional IRA, 401(k), Rollover IRA, 403(b), etc. (taxed on withdrawal)
+- **roth**: Roth IRA, Roth 401(k) (tax-free growth and withdrawals)
+- **unknown**: Default when type is not specified
+
+The nicknames and types will appear in both console output and PDF reports. Account types are used in the Asset Location tables for tax efficiency analysis.
 
 **Note:** The `account_nicknames.json` file is excluded from git to protect your privacy.
 

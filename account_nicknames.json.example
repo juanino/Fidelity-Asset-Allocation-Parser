@@ -1,9 +1,21 @@
 {
-  "comment": "This is an example account nicknames file. Copy this to account_nicknames.json and add your account nicknames.",
+  "comment": "Account configuration file. Copy this to account_nicknames.json and add your account nicknames and types.",
   "nicknames": {
-    "*1234": "HSA",
-    "*****5678": "Roth IRA",
-    "*****9101": "401(k)",
-    "*****1213": "Traditional IRA",
+    "*1234": {
+      "name": "HSA",
+      "type": "tax-deferred"
+    },
+    "*****5678": {
+      "name": "Roth IRA",
+      "type": "roth"
+    },
+    "*****9101": {
+      "name": "401(k)",
+      "type": "tax-deferred"
+    },
+    "*****1213": {
+      "name": "Traditional IRA",
+      "type": "tax-deferred"
+    }
   }
 }
