@@ -1,0 +1,60 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable with PyInstaller
+      run: |
+        pyinstaller --onefile --name check_allocation check_allocation.py
+    
+    - name: Create release bundle
+      run: |
+        mkdir release_bundle
+        copy dist\check_allocation.exe release_bundle\
+        copy config.json release_bundle\
+        copy account_nicknames.json.example release_bundle\
+        copy README.md release_bundle\
+      shell: cmd
+    
+    - name: Create ZIP archive
+      run: |
+        Compress-Archive -Path release_bundle\* -DestinationPath allocation_calc-windows.zip
+      shell: powershell
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: allocation_calc-windows
+        path: allocation_calc-windows.zip
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: allocation_calc-windows.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
