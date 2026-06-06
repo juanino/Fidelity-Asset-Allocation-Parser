@@ -131,3 +131,5 @@ history.log
 
 # Account nicknames - contains personal account information
 account_nicknames.json
+.vscode/
+.DS*
